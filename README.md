@@ -1,11 +1,18 @@
 # FilterFS
 
-[![License](https://img.shields.io/badge/License-LGPL_3.0-blue)](https://licenses.nuget.org/LGPL-3.0-or-later)
-![Language](https://img.shields.io/github/languages/top/Hawkynt/FilterFilesystem?color=purple)
-[![Tests](https://github.com/Hawkynt/FilterFilesystem/workflows/tests/badge.svg)](https://github.com/Hawkynt/FilterFilesystem/actions)
+[![License](https://img.shields.io/github/license/Hawkynt/FilterFilesystem)](https://github.com/Hawkynt/FilterFilesystem/blob/main/LICENSE)
+[![Language](https://img.shields.io/github/languages/top/Hawkynt/FilterFilesystem?color=8957D5)](https://github.com/Hawkynt/FilterFilesystem)
 
+[![CI](https://github.com/Hawkynt/FilterFilesystem/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Hawkynt/FilterFilesystem/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Hawkynt/FilterFilesystem)](https://goreportcard.com/report/github.com/Hawkynt/FilterFilesystem)
-[![Coverage](https://codecov.io/gh/Hawkynt/FilterFilesystem/branch/main/graph/badge.svg)](https://codecov.io/gh/Hawkynt/FilterFilesystem)
+![Last Commit](https://img.shields.io/github/last-commit/Hawkynt/FilterFilesystem?branch=main)
+![Activity](https://img.shields.io/github/commit-activity/m/Hawkynt/FilterFilesystem)
+
+[![Stars](https://img.shields.io/github/stars/Hawkynt/FilterFilesystem?color=FFD700)](https://github.com/Hawkynt/FilterFilesystem/stargazers)
+[![Forks](https://img.shields.io/github/forks/Hawkynt/FilterFilesystem?color=008080)](https://github.com/Hawkynt/FilterFilesystem/network/members)
+[![Issues](https://img.shields.io/github/issues/Hawkynt/FilterFilesystem)](https://github.com/Hawkynt/FilterFilesystem/issues)
+![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/FilterFilesystem?color=4CAF50)
+![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/FilterFilesystem?color=FF9800)
 
 A high-performance filter filesystem built with Go and FUSE that allows you to mount directories with filtered content. FilterFS provides fine-grained control over which files and directories are visible, supporting both read-only and read-write modes with advanced pattern matching for blacklisting.
 
