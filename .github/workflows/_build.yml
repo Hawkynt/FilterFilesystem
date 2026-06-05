@@ -1,0 +1,59 @@
+name: Build artifacts
+
+# Shared build block. Called by release.yml (manual dispatch) and nightly.yml
+# (auto, on CI success). Single place that turns a commit into shippable
+# artifacts so release and nightly never diverge.
+#
+# Go repo: there are no package manifests, so there is no version stamping and
+# no NuGet block — binaries carry their version via git describe (see the
+# Makefile's LDFLAGS) and go-fuse limits the targets to linux/darwin.
+on:
+  workflow_call:
+    inputs:
+      push-nuget:
+        description: Accepted for template compatibility; this repo ships no packages
+        type: boolean
+        default: false
+      ref:
+        description: Git ref/SHA to build (defaults to caller ref)
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Force JavaScript-based actions to run on Node 24 instead of the deprecated Node 20 ahead of
+# the 2026-06-16 hard cutover, until we bump each remaining action to a Node-24-native major.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0                         # git describe needs tags for the version stamp
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: 'stable'
+
+      - name: Build multi-platform binaries
+        run: |
+          make build-all
+          mkdir -p dist
+          cp bin/* dist/
+
+      - name: Build Docker image
+        run: |
+          docker build -t filterfs:latest .
+          docker save filterfs:latest | gzip > dist/filterfs-docker.tar.gz
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: app-artifacts
+          path: dist/*
+          if-no-files-found: error

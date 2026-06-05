@@ -22,7 +22,7 @@ A high-performance filter filesystem built with Go and FUSE that allows you to m
 - **Flexible Mount Modes**: Support for both read-only and read-write mounting
 - **Smart Operations**: Intelligent handling of operations on filtered content
 - **High Performance**: Optimized for low latency and high throughput
-- **Cross-platform**: Works on Linux, macOS, and Windows
+- **Cross-platform**: Works on Linux and macOS (FUSE has no Windows port)
 - **Comprehensive Logging**: Detailed logging with configurable levels
 - **Docker Support**: Ready-to-use Docker containers
 - **Production Ready**: Extensive testing and error handling
@@ -33,8 +33,8 @@ A high-performance filter filesystem built with Go and FUSE that allows you to m
 
 ```bash
 # Clone the repository
-git clone https://github.com/filterfs/filterfs.git
-cd filterfs
+git clone https://github.com/Hawkynt/FilterFilesystem.git
+cd FilterFilesystem
 
 # Build and install
 make install
@@ -54,7 +54,9 @@ docker pull filterfs/filterfs:latest
 
 ### Binary Releases
 
-Download pre-built binaries from the [releases page](https://github.com/filterfs/filterfs/releases).
+Download pre-built binaries from the [releases page](https://github.com/Hawkynt/FilterFilesystem/releases).
+Stable releases are dated `vyyyyMMdd` tags; automatically published `nightly-yyyyMMdd`
+prereleases track every green CI run on `main`.
 
 ## Quick Start
 
@@ -253,8 +255,8 @@ sudo yum install fuse fuse-devel
 
 ```bash
 # Clone repository
-git clone https://github.com/filterfs/filterfs.git
-cd filterfs
+git clone https://github.com/Hawkynt/FilterFilesystem.git
+cd FilterFilesystem
 
 # Install dependencies
 make deps
@@ -408,6 +410,6 @@ FilterFS is licensed under the LGPL License. See [LICENSE](LICENSE) for details.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/filterfs/filterfs/issues)
+- **Issues**: [GitHub Issues](https://github.com/Hawkynt/FilterFilesystem/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/filterfs/filterfs/discussions)
 - **Documentation**: [Wiki](https://github.com/filterfs/filterfs/wiki)
