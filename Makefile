@@ -81,10 +81,9 @@ dev: build
 	@echo "Temp file" > tmp/source/temp.tmp
 	./$(BUILD_DIR)/$(BINARY_NAME) mount -s tmp/source -m tmp/mount -b "**/*.log" -b "**/*.tmp" --log-level debug
 
-# Create example config
-example-config:
-	@echo "Creating example configuration..."
-	@cat > filterfs.example.yaml << 'EOF'
+# Example configuration content (define keeps the body verbatim, so it can be
+# emitted from a recipe without tripping Make's tab-based recipe parsing)
+define EXAMPLE_CONFIG
 # FilterFS Configuration Example
 # This file demonstrates all available configuration options
 
@@ -149,7 +148,13 @@ allow_delete_with_hidden: false
 # Optional: Allow renaming of directories that contain hidden files (default: false)  
 # When false, attempts to rename directories with blacklisted content will fail
 allow_rename_with_hidden: false
-EOF
+endef
+export EXAMPLE_CONFIG
+
+# Create example config
+example-config:
+	@echo "Creating example configuration..."
+	@printf '%s\n' "$$EXAMPLE_CONFIG" > filterfs.example.yaml
 	@echo "Example configuration created: filterfs.example.yaml"
 
 # Build for multiple platforms
