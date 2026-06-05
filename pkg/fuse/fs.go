@@ -6,9 +6,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
@@ -149,6 +151,101 @@ func (n *FilterNode) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) 
 	}
 
 	return fs.NewListDirStream(filtered), fs.OK
+}
+
+// Setattr changes file attributes: size (truncate), mode, ownership and times.
+// Without it the kernel cannot truncate files, so opening an existing file
+// with O_TRUNC (e.g. os.WriteFile) would fail with ENOTSUP.
+func (n *FilterNode) Setattr(
+	ctx context.Context, f fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut,
+) syscall.Errno {
+	if n.root.config.ReadOnly {
+		return syscall.EROFS
+	}
+
+	p := n.fullPath()
+
+	if errno := applySize(p, in); errno != fs.OK {
+		return errno
+	}
+	if errno := applyModeAndOwner(p, in); errno != fs.OK {
+		return errno
+	}
+	if errno := applyTimes(p, in); errno != fs.OK {
+		return errno
+	}
+
+	st := &syscall.Stat_t{}
+	if err := syscall.Stat(p, st); err != nil {
+		return fs.ToErrno(err)
+	}
+	out.FromStat(st)
+
+	return fs.OK
+}
+
+// applySize truncates the file when a size change is requested.
+func applySize(p string, in *fuse.SetAttrIn) syscall.Errno {
+	sz, ok := in.GetSize()
+	if !ok {
+		return fs.OK
+	}
+	if sz > math.MaxInt64 {
+		return syscall.EINVAL
+	}
+	if err := os.Truncate(p, int64(sz)); err != nil {
+		return fs.ToErrno(err)
+	}
+	return fs.OK
+}
+
+// applyModeAndOwner applies chmod/chown requests.
+func applyModeAndOwner(p string, in *fuse.SetAttrIn) syscall.Errno {
+	if mode, ok := in.GetMode(); ok {
+		if err := os.Chmod(p, os.FileMode(mode)); err != nil {
+			return fs.ToErrno(err)
+		}
+	}
+
+	uid, uok := in.GetUID()
+	gid, gok := in.GetGID()
+	if uok || gok {
+		// -1 leaves the respective id unchanged; ids follow the kernel's 32-bit ABI
+		suid, sgid := -1, -1
+		if uok {
+			suid = int(uid)
+		}
+		if gok {
+			sgid = int(gid)
+		}
+		if err := os.Chown(p, suid, sgid); err != nil {
+			return fs.ToErrno(err)
+		}
+	}
+
+	return fs.OK
+}
+
+// applyTimes applies atime/mtime changes.
+func applyTimes(p string, in *fuse.SetAttrIn) syscall.Errno {
+	atime, aok := in.GetATime()
+	mtime, mok := in.GetMTime()
+	if !aok && !mok {
+		return fs.OK
+	}
+
+	// a zero time.Time leaves the corresponding timestamp unchanged
+	var at, mt time.Time
+	if aok {
+		at = atime
+	}
+	if mok {
+		mt = mtime
+	}
+	if err := os.Chtimes(p, at, mt); err != nil {
+		return fs.ToErrno(err)
+	}
+	return fs.OK
 }
 
 // Open opens a file for reading or writing.
