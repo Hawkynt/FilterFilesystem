@@ -74,7 +74,7 @@ func TestMatcher_IsBlacklisted(t *testing.T) {
 
 func TestMatcher_WouldCreateBlacklisted(t *testing.T) {
 	m := NewMatcher([]string{"**/*.tmp", "**/temp"})
-	
+
 	tests := []struct {
 		parent   string
 		name     string
@@ -96,7 +96,7 @@ func TestMatcher_WouldCreateBlacklisted(t *testing.T) {
 			expected: false,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		result := m.WouldCreateBlacklisted(tt.parent, tt.name)
 		assert.Equal(t, tt.expected, result)

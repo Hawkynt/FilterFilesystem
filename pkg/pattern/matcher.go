@@ -3,6 +3,7 @@
 package pattern
 
 import (
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -35,11 +36,11 @@ func NewMatcher(patterns []string) *Matcher {
 	m := &Matcher{
 		patterns: make([]Pattern, 0, len(patterns)),
 	}
-	
+
 	for _, p := range patterns {
 		m.patterns = append(m.patterns, parsePattern(p))
 	}
-	
+
 	return m
 }
 
@@ -50,8 +51,8 @@ func parsePattern(pattern string) Pattern {
 		original: pattern,
 		isGlob:   true,
 	}
-	
-	// Convert pattern to filepath.Match compatible format
+
+	// Convert pattern to path.Match compatible format
 	if strings.HasPrefix(pattern, "**/") {
 		// Match at any level
 		p.regex = pattern[3:]
@@ -66,7 +67,7 @@ func parsePattern(pattern string) Pattern {
 	} else {
 		p.regex = pattern
 	}
-	
+
 	return p
 }
 
@@ -74,37 +75,39 @@ func parsePattern(pattern string) Pattern {
 // The path should be relative to the filesystem root and use forward slashes.
 //
 // Returns true if the path matches any pattern, false otherwise.
-func (m *Matcher) IsBlacklisted(path string) bool {
+func (m *Matcher) IsBlacklisted(relPath string) bool {
 	// Normalize path separators
-	path = filepath.ToSlash(path)
-	
+	relPath = filepath.ToSlash(relPath)
+
 	for _, pattern := range m.patterns {
-		if m.matchesPattern(path, pattern) {
+		if m.matchesPattern(relPath, pattern) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 // matchesPattern tests if a path matches a specific pattern.
 // It handles both glob patterns and ** wildcard patterns efficiently.
-func (m *Matcher) matchesPattern(path string, pattern Pattern) bool {
+// Matching uses path.Match (slash semantics) because all paths are
+// normalized to forward slashes regardless of host OS.
+func (m *Matcher) matchesPattern(relPath string, pattern Pattern) bool {
 	if pattern.isGlob {
 		// Standard glob matching
-		matched, _ := filepath.Match(pattern.regex, path)
+		matched, _ := path.Match(pattern.regex, relPath)
 		if matched {
 			return true
 		}
-		
+
 		// For patterns like "*/file", check each directory level
 		if strings.HasPrefix(pattern.regex, "*/") {
-			parts := strings.Split(path, "/")
-			if len(parts) >= 2 {
+			parts := strings.Split(relPath, "/")
+			if len(parts) > 1 {
 				// Match against the pattern at each level
 				for i := 1; i < len(parts); i++ {
 					testPath := strings.Join(parts[:i], "/") + "/" + parts[i]
-					if matched, _ := filepath.Match(pattern.regex, testPath); matched {
+					if matched, _ := path.Match(pattern.regex, testPath); matched {
 						return true
 					}
 				}
@@ -112,39 +115,39 @@ func (m *Matcher) matchesPattern(path string, pattern Pattern) bool {
 		}
 	} else {
 		// For ** patterns (any level matching)
-		parts := strings.Split(path, "/")
-		
+		parts := strings.Split(relPath, "/")
+
 		// Check if the pattern matches any part of the path
 		for i := 0; i < len(parts); i++ {
 			for j := i; j < len(parts); j++ {
 				// Try matching subpaths at different levels
 				subPath := strings.Join(parts[i:j+1], "/")
-				if matched, _ := filepath.Match(pattern.regex, subPath); matched {
+				if matched, _ := path.Match(pattern.regex, subPath); matched {
 					return true
 				}
-				
+
 				// For extension patterns like "*.log"
 				if strings.HasPrefix(pattern.regex, "*.") {
-					if matched, _ := filepath.Match(pattern.regex, parts[j]); matched {
+					if matched, _ := path.Match(pattern.regex, parts[j]); matched {
 						return true
 					}
 				}
 			}
 		}
-		
+
 		// Direct filename/dirname matching
 		for _, part := range parts {
-			if matched, _ := filepath.Match(pattern.regex, part); matched {
+			if matched, _ := path.Match(pattern.regex, part); matched {
 				return true
 			}
 		}
-		
+
 		// Full path matching for cases like "dir/file"
-		if matched, _ := filepath.Match(pattern.regex, path); matched {
+		if matched, _ := path.Match(pattern.regex, relPath); matched {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

@@ -5,15 +5,17 @@ package fuse
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"syscall"
 
-	"github.com/filterfs/filterfs/pkg/filter"
-	"github.com/filterfs/filterfs/pkg/pattern"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 	"go.uber.org/zap"
+
+	"github.com/filterfs/filterfs/pkg/filter"
+	"github.com/filterfs/filterfs/pkg/pattern"
 )
 
 // FilterFS represents the root of the filtered filesystem.
@@ -36,7 +38,7 @@ func NewFilterFS(config *filter.Config, logger *zap.Logger) (*FilterFS, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path: %w", err)
 	}
-	
+
 	return &FilterFS{
 		root:    absRoot,
 		config:  config,
@@ -103,52 +105,52 @@ func (n *FilterNode) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.Att
 // It applies filtering rules and returns ENOENT for blacklisted items.
 func (r *FilterFS) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 	path := filepath.Join("", name)
-	
+
 	if r.shouldHide(path) {
 		return nil, syscall.ENOENT
 	}
-	
+
 	fullPath := r.fullPath(path)
 	st := &syscall.Stat_t{}
 	err := syscall.Stat(fullPath, st)
 	if err != nil {
 		return nil, fs.ToErrno(err)
 	}
-	
+
 	out.FromStat(st)
-	
+
 	node := &FilterNode{
 		path: path,
 		root: r,
 	}
-	
-	return r.NewInode(ctx, node, fs.StableAttr{Mode: uint32(st.Mode)}), fs.OK
+
+	return r.NewInode(ctx, node, fs.StableAttr{Mode: st.Mode}), fs.OK
 }
 
 // Lookup finds a child node by name within this directory node.
 // It applies filtering rules and returns ENOENT for blacklisted items.
 func (n *FilterNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 	path := filepath.Join(n.path, name)
-	
+
 	if n.root.shouldHide(path) {
 		return nil, syscall.ENOENT
 	}
-	
+
 	fullPath := n.root.fullPath(path)
 	st := &syscall.Stat_t{}
 	err := syscall.Stat(fullPath, st)
 	if err != nil {
 		return nil, fs.ToErrno(err)
 	}
-	
+
 	out.FromStat(st)
-	
+
 	child := &FilterNode{
 		path: path,
 		root: n.root,
 	}
-	
-	return n.NewInode(ctx, child, fs.StableAttr{Mode: uint32(st.Mode)}), fs.OK
+
+	return n.NewInode(ctx, child, fs.StableAttr{Mode: st.Mode}), fs.OK
 }
 
 // Readdir returns the contents of this directory with blacklisted items filtered out.
@@ -158,27 +160,27 @@ func (n *FilterNode) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) 
 	if err != nil {
 		return nil, fs.ToErrno(err)
 	}
-	
+
 	var filtered []fuse.DirEntry
 	for _, e := range entries {
 		path := filepath.Join(n.path, e.Name())
 		if n.root.shouldHide(path) {
 			continue
 		}
-		
+
 		mode := uint32(0)
 		if e.IsDir() {
 			mode = syscall.S_IFDIR
 		} else {
 			mode = syscall.S_IFREG
 		}
-		
+
 		filtered = append(filtered, fuse.DirEntry{
 			Name: e.Name(),
 			Mode: mode,
 		})
 	}
-	
+
 	return fs.NewListDirStream(filtered), fs.OK
 }
 
@@ -188,77 +190,81 @@ func (n *FilterNode) Open(ctx context.Context, flags uint32) (fs.FileHandle, uin
 	if n.root.config.ReadOnly && (flags&(syscall.O_WRONLY|syscall.O_RDWR)) != 0 {
 		return nil, 0, syscall.EROFS
 	}
-	
+
 	fh, err := os.OpenFile(n.fullPath(), int(flags), 0)
 	if err != nil {
 		return nil, 0, fs.ToErrno(err)
 	}
-	
+
 	return &FilterFile{file: fh}, 0, fs.OK
 }
 
 // Create creates a new file in this directory.
 // It prevents creation of files that would match blacklist patterns.
-func (n *FilterNode) Create(ctx context.Context, name string, flags uint32, mode uint32, out *fuse.EntryOut) (*fs.Inode, fs.FileHandle, uint32, syscall.Errno) {
+func (n *FilterNode) Create(
+	ctx context.Context, name string, flags, mode uint32, out *fuse.EntryOut,
+) (*fs.Inode, fs.FileHandle, uint32, syscall.Errno) {
 	if n.root.config.ReadOnly {
 		return nil, nil, 0, syscall.EROFS
 	}
-	
+
 	if n.root.matcher.WouldCreateBlacklisted(n.path, name) {
 		return nil, nil, 0, syscall.EPERM
 	}
-	
+
 	path := filepath.Join(n.fullPath(), name)
 	fh, err := os.OpenFile(path, int(flags)|os.O_CREATE, os.FileMode(mode))
 	if err != nil {
 		return nil, nil, 0, fs.ToErrno(err)
 	}
-	
+
 	st := &syscall.Stat_t{}
 	if err := syscall.Stat(path, st); err != nil {
 		fh.Close()
 		return nil, nil, 0, fs.ToErrno(err)
 	}
-	
+
 	out.FromStat(st)
-	
+
 	child := &FilterNode{
 		path: filepath.Join(n.path, name),
 		root: n.root,
 	}
-	
-	return n.NewInode(ctx, child, fs.StableAttr{Mode: uint32(st.Mode)}), &FilterFile{file: fh}, 0, fs.OK
+
+	return n.NewInode(ctx, child, fs.StableAttr{Mode: st.Mode}), &FilterFile{file: fh}, 0, fs.OK
 }
 
 // Mkdir creates a new directory in this directory.
 // It prevents creation of directories that would match blacklist patterns.
-func (n *FilterNode) Mkdir(ctx context.Context, name string, mode uint32, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+func (n *FilterNode) Mkdir(
+	ctx context.Context, name string, mode uint32, out *fuse.EntryOut,
+) (*fs.Inode, syscall.Errno) {
 	if n.root.config.ReadOnly {
 		return nil, syscall.EROFS
 	}
-	
+
 	if n.root.matcher.WouldCreateBlacklisted(n.path, name) {
 		return nil, syscall.EPERM
 	}
-	
+
 	path := filepath.Join(n.fullPath(), name)
 	if err := os.Mkdir(path, os.FileMode(mode)); err != nil {
 		return nil, fs.ToErrno(err)
 	}
-	
+
 	st := &syscall.Stat_t{}
 	if err := syscall.Stat(path, st); err != nil {
 		return nil, fs.ToErrno(err)
 	}
-	
+
 	out.FromStat(st)
-	
+
 	child := &FilterNode{
 		path: filepath.Join(n.path, name),
 		root: n.root,
 	}
-	
-	return n.NewInode(ctx, child, fs.StableAttr{Mode: uint32(st.Mode)}), fs.OK
+
+	return n.NewInode(ctx, child, fs.StableAttr{Mode: st.Mode}), fs.OK
 }
 
 // Unlink removes a file from this directory.
@@ -267,17 +273,17 @@ func (n *FilterNode) Unlink(ctx context.Context, name string) syscall.Errno {
 	if n.root.config.ReadOnly {
 		return syscall.EROFS
 	}
-	
+
 	path := filepath.Join(n.path, name)
 	if n.root.shouldHide(path) {
 		return syscall.ENOENT
 	}
-	
+
 	fullPath := filepath.Join(n.fullPath(), name)
 	if err := os.Remove(fullPath); err != nil {
 		return fs.ToErrno(err)
 	}
-	
+
 	return fs.OK
 }
 
@@ -287,22 +293,22 @@ func (n *FilterNode) Rmdir(ctx context.Context, name string) syscall.Errno {
 	if n.root.config.ReadOnly {
 		return syscall.EROFS
 	}
-	
+
 	dirPath := filepath.Join(n.path, name)
 	if n.root.shouldHide(dirPath) {
 		return syscall.ENOENT
 	}
-	
+
 	// Check if directory contains hidden files
 	if !n.root.config.AllowDelete && n.hasHiddenChildren(name) {
 		return syscall.EPERM
 	}
-	
+
 	fullPath := filepath.Join(n.fullPath(), name)
 	if err := os.Remove(fullPath); err != nil {
 		return fs.ToErrno(err)
 	}
-	
+
 	return fs.OK
 }
 
@@ -314,13 +320,13 @@ func (n *FilterNode) hasHiddenChildren(name string) bool {
 	if err != nil {
 		return false
 	}
-	
+
 	// Get entry names for pattern matcher
 	entryNames := make([]string, len(entries))
 	for i, e := range entries {
 		entryNames[i] = e.Name()
 	}
-	
+
 	// Use the pattern matcher to check for blacklisted children
 	relativeDirPath := filepath.Join(n.path, name)
 	return n.root.matcher.HasBlacklistedChildren(relativeDirPath, entryNames)
@@ -328,42 +334,43 @@ func (n *FilterNode) hasHiddenChildren(name string) bool {
 
 // Rename moves/renames a file or directory.
 // It prevents renaming to blacklisted names and respects the allow_rename_with_hidden setting.
-func (n *FilterNode) Rename(ctx context.Context, name string, newParent fs.InodeEmbedder, newName string, flags uint32) syscall.Errno {
+func (n *FilterNode) Rename(
+	ctx context.Context, name string, newParent fs.InodeEmbedder, newName string, flags uint32,
+) syscall.Errno {
 	if n.root.config.ReadOnly {
 		return syscall.EROFS
 	}
-	
+
 	newParentNode, ok := newParent.(*FilterNode)
 	if !ok {
 		return syscall.EINVAL
 	}
-	
+
 	oldPath := filepath.Join(n.path, name)
-	newPath := filepath.Join(newParentNode.path, newName)
-	
+
 	// Check if source is hidden
 	if n.root.shouldHide(oldPath) {
 		return syscall.ENOENT
 	}
-	
+
 	// Check if destination would be blacklisted
 	if n.root.matcher.WouldCreateBlacklisted(newParentNode.path, newName) {
 		return syscall.EPERM
 	}
-	
+
 	// Check if moving directory with hidden children
 	info, err := os.Stat(n.fullPath())
 	if err == nil && info.IsDir() && !n.root.config.AllowRename && n.hasHiddenChildren(name) {
 		return syscall.EPERM
 	}
-	
+
 	oldFullPath := filepath.Join(n.fullPath(), name)
 	newFullPath := filepath.Join(newParentNode.fullPath(), newName)
-	
+
 	if err := os.Rename(oldFullPath, newFullPath); err != nil {
 		return fs.ToErrno(err)
 	}
-	
+
 	return fs.OK
 }
 
@@ -376,7 +383,7 @@ type FilterFile struct {
 // Read reads data from the file at the specified offset.
 func (f *FilterFile) Read(ctx context.Context, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
 	n, err := f.file.ReadAt(dest, off)
-	if err != nil && err != os.EOF {
+	if err != nil && err != io.EOF {
 		return nil, fs.ToErrno(err)
 	}
 	return fuse.ReadResultData(dest[:n]), fs.OK
@@ -385,7 +392,8 @@ func (f *FilterFile) Read(ctx context.Context, dest []byte, off int64) (fuse.Rea
 // Write writes data to the file at the specified offset.
 func (f *FilterFile) Write(ctx context.Context, data []byte, off int64) (written uint32, errno syscall.Errno) {
 	n, err := f.file.WriteAt(data, off)
-	return uint32(n), fs.ToErrno(err)
+	// n is bounded by len(data), which FUSE caps far below the uint32 limit
+	return uint32(n), fs.ToErrno(err) //nolint:gosec // see bound note above
 }
 
 // Release closes the file handle.

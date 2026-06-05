@@ -13,19 +13,19 @@ import (
 type Config struct {
 	// SourcePath is the path to the source directory to be filtered
 	SourcePath string `yaml:"source_path"`
-	
+
 	// MountPath is the path where the filtered filesystem will be mounted
 	MountPath string `yaml:"mount_path"`
-	
+
 	// ReadOnly determines if the filesystem should be mounted in read-only mode
 	ReadOnly bool `yaml:"read_only"`
-	
+
 	// Blacklist contains the patterns for files/directories to hide
 	Blacklist []string `yaml:"blacklist"`
-	
+
 	// AllowDelete controls whether directories containing hidden files can be deleted
 	AllowDelete bool `yaml:"allow_delete_with_hidden"`
-	
+
 	// AllowRename controls whether directories containing hidden files can be renamed
 	AllowRename bool `yaml:"allow_rename_with_hidden"`
 }
@@ -40,16 +40,16 @@ func LoadConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
-	
+
 	var config Config
 	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
-	
+
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
-	
+
 	return &config, nil
 }
 
@@ -61,16 +61,16 @@ func (c *Config) Validate() error {
 	if c.SourcePath == "" {
 		return fmt.Errorf("source_path is required")
 	}
-	
+
 	if c.MountPath == "" {
 		return fmt.Errorf("mount_path is required")
 	}
-	
+
 	// Check if source path exists
 	if _, err := os.Stat(c.SourcePath); err != nil {
 		return fmt.Errorf("source path does not exist: %w", err)
 	}
-	
+
 	return nil
 }
 

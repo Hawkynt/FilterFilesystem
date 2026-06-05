@@ -91,6 +91,8 @@ linters:
           - mnd
           - funlen
           - gocyclo
+          - goconst # repeated literals are fine in test tables
+          - gosec   # G306: 0644 fixture files are fine in tests
 
       - path: cmd/
         linters:
@@ -100,9 +102,13 @@ linters:
         linters:
           - lll
 
-      # Exclude some lints for test files
       - text: "should have a package comment"
+        linters:
+          - staticcheck
+
       - text: "don't use ALL_CAPS in Go names"
+        linters:
+          - staticcheck
 
 formatters:
   enable:
