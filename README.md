@@ -22,7 +22,7 @@ A high-performance filter filesystem built with Go and FUSE that allows you to m
 - **Flexible Mount Modes**: Support for both read-only and read-write mounting
 - **Smart Operations**: Intelligent handling of operations on filtered content
 - **High Performance**: Optimized for low latency and high throughput
-- **Cross-platform**: Works on Linux and macOS (FUSE has no Windows port)
+- **Cross-platform**: Linux and macOS via FUSE, Windows via [WinFsp](https://winfsp.dev)
 - **Comprehensive Logging**: Detailed logging with configurable levels
 - **Docker Support**: Ready-to-use Docker containers
 - **Production Ready**: Extensive testing and error handling
@@ -43,13 +43,13 @@ make install
 ### Using Go Install
 
 ```bash
-go install github.com/filterfs/filterfs/cmd/filterfs@latest
+go install github.com/Hawkynt/FilterFilesystem/cmd/filterfs@latest
 ```
 
 ### Docker
 
 ```bash
-docker pull filterfs/filterfs:latest
+docker pull ghcr.io/hawkynt/filterfilesystem:latest
 ```
 
 ### Binary Releases
@@ -57,6 +57,19 @@ docker pull filterfs/filterfs:latest
 Download pre-built binaries from the [releases page](https://github.com/Hawkynt/FilterFilesystem/releases).
 Stable releases are dated `vyyyyMMdd` tags; automatically published `nightly-yyyyMMdd`
 prereleases track every green CI run on `main`.
+
+### Windows
+
+FilterFS runs on Windows through [WinFsp](https://winfsp.dev) - install it first
+(`winget install WinFsp.WinFsp`), then mount onto an unused drive letter or a
+non-existing directory:
+
+```powershell
+filterfs.exe mount -s C:\data -m X: -b "**/*.log"
+```
+
+The mount point must not already exist (WinFsp creates it). Unmount by stopping
+the filterfs process (Ctrl+C); the `unmount` command is Unix-only.
 
 ## Quick Start
 
@@ -202,7 +215,7 @@ docker run -d \
   --security-opt apparmor:unconfined \
   -v ~/source:/mnt/source:ro \
   -v ~/filtered:/mnt/filtered:rshared \
-  filterfs/filterfs:latest \
+  ghcr.io/hawkynt/filterfilesystem:latest \
   mount -s /mnt/source -m /mnt/filtered -b "**/*.log"
 ```
 
@@ -212,7 +225,7 @@ docker run -d \
 version: '3.8'
 services:
   filterfs:
-    image: filterfs/filterfs:latest
+    image: ghcr.io/hawkynt/filterfilesystem:latest
     devices:
       - /dev/fuse
     cap_add:

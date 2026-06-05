@@ -34,6 +34,9 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -45,6 +48,17 @@ jobs:
         with:
           name: app-artifacts
           path: dist
+
+      - name: Push Docker image to GHCR (:latest + dated tag)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker load < dist/filterfs-docker.tar.gz
+          docker tag filterfs:latest "ghcr.io/hawkynt/filterfilesystem:$REL"
+          docker tag filterfs:latest ghcr.io/hawkynt/filterfilesystem:latest
+          docker push "ghcr.io/hawkynt/filterfilesystem:$REL"
+          docker push ghcr.io/hawkynt/filterfilesystem:latest
 
       - uses: actions/setup-node@v6
         with:
