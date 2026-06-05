@@ -14,9 +14,13 @@
 ![Code Size](https://img.shields.io/github/languages/code-size/Hawkynt/FilterFilesystem?color=4CAF50)
 ![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/FilterFilesystem?color=FF9800)
 
-A high-performance filter filesystem built with Go and FUSE that allows you to mount directories with filtered content. FilterFS provides fine-grained control over which files and directories are visible, supporting both read-only and read-write modes with advanced pattern matching for blacklisting.
+[![Release](https://img.shields.io/github/v/release/Hawkynt/FilterFilesystem?sort=semver)](https://github.com/Hawkynt/FilterFilesystem/releases/latest)
+[![Nightly](https://img.shields.io/github/v/release/Hawkynt/FilterFilesystem?include_prereleases=true&sort=date&label=nightly&color=FF9800)](https://github.com/Hawkynt/FilterFilesystem/releases)
+[![Downloads](https://img.shields.io/github/downloads/Hawkynt/FilterFilesystem/total)](https://github.com/Hawkynt/FilterFilesystem/releases)
 
-## Features
+> A high-performance filter filesystem in Go (FUSE on Linux, WinFsp on Windows) that mounts any directory with fine-grained pattern-based visibility filtering — read-only or read-write — so tools and users only ever see the files they're supposed to.
+
+## ✨ Features
 
 - **Pattern-based Filtering**: Advanced glob and wildcard pattern matching
 - **Flexible Mount Modes**: Support for both read-only and read-write mounting
@@ -27,7 +31,7 @@ A high-performance filter filesystem built with Go and FUSE that allows you to m
 - **Docker Support**: Ready-to-use Docker containers
 - **Production Ready**: Extensive testing and error handling
 
-## Installation
+## 📦 Installation
 
 ### From Source
 
@@ -71,7 +75,7 @@ filterfs.exe mount -s C:\data -m X: -b "**/*.log"
 The mount point must not already exist (WinFsp creates it). Unmount by stopping
 the filterfs process (Ctrl+C); the `unmount` command is Unix-only.
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Basic Usage
 
@@ -239,7 +243,7 @@ services:
     command: mount --config /etc/filterfs/config.yaml
 ```
 
-## Development
+## 🛠️ Development
 
 ### Prerequisites
 
@@ -411,9 +415,9 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 5. Run `make check`
 6. Submit a pull request
 
-## License
+## 📜 License
 
-FilterFS is licensed under the LGPL License. See [LICENSE](LICENSE) for details.
+Licensed under LGPL-3.0-or-later — see [LICENSE](LICENSE).
 
 ## Acknowledgments
 
@@ -421,8 +425,14 @@ FilterFS is licensed under the LGPL License. See [LICENSE](LICENSE) for details.
 - Uses [cobra](https://github.com/spf13/cobra) for CLI interface
 - Logging powered by [zap](https://github.com/uber-go/zap)
 
-## Support
+## 🆘 Getting Help
 
 - **Issues**: [GitHub Issues](https://github.com/Hawkynt/FilterFilesystem/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/filterfs/filterfs/discussions)
-- **Documentation**: [Wiki](https://github.com/filterfs/filterfs/wiki)
+- **Discussions**: [GitHub Discussions](https://github.com/Hawkynt/FilterFilesystem/discussions)
+
+## ❤️ Support
+
+If this project saves you time or money, consider supporting its development:
+
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/Hawkynt)
+[![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal)](https://www.paypal.me/hawkynt)
