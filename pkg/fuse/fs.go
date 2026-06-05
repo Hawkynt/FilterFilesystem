@@ -18,33 +18,35 @@ import (
 	"github.com/filterfs/filterfs/pkg/pattern"
 )
 
-// FilterFS represents the root of the filtered filesystem.
-// It implements the go-fuse filesystem interface and provides filtered access
-// to the underlying source directory based on blacklist patterns.
+// FilterFS holds the shared state of the filtered filesystem: the source
+// directory, configuration, pattern matcher and logger. The actual go-fuse
+// node tree consists of FilterNode values referencing this shared state;
+// the mount root is a FilterNode with an empty relative path.
 type FilterFS struct {
-	fs.Inode
 	root    string           // Absolute path to the source directory
 	config  *filter.Config   // Configuration settings
 	matcher *pattern.Matcher // Pattern matcher for blacklisting
 	logger  *zap.Logger      // Structured logger
 }
 
-// NewFilterFS creates a new FilterFS instance with the given configuration and logger.
-// It initializes the pattern matcher and prepares the filesystem for mounting.
+// NewFilterFS creates the filtered filesystem and returns its root node,
+// ready to be passed to fs.Mount.
 //
 // The source path in the config is converted to an absolute path for consistency.
-func NewFilterFS(config *filter.Config, logger *zap.Logger) (*FilterFS, error) {
+func NewFilterFS(config *filter.Config, logger *zap.Logger) (*FilterNode, error) {
 	absRoot, err := filepath.Abs(config.SourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	return &FilterFS{
+	root := &FilterFS{
 		root:    absRoot,
 		config:  config,
 		matcher: pattern.NewMatcher(config.Blacklist),
 		logger:  logger,
-	}, nil
+	}
+
+	return &FilterNode{path: "", root: root}, nil
 }
 
 // fullPath converts a relative filesystem path to an absolute path in the source directory.
@@ -55,24 +57,6 @@ func (r *FilterFS) fullPath(path string) string {
 // shouldHide determines if a path should be hidden based on the blacklist patterns.
 func (r *FilterFS) shouldHide(path string) bool {
 	return r.matcher.IsBlacklisted(path)
-}
-
-// OnAdd is called when the filesystem is successfully mounted.
-// It logs the mount operation for debugging and monitoring.
-func (r *FilterFS) OnAdd(ctx context.Context) {
-	r.logger.Info("FilterFS mounted", zap.String("source", r.root), zap.String("mount", r.config.MountPath))
-}
-
-// Getattr returns file attributes for the root directory.
-// This implements the FUSE Getattr operation for the filesystem root.
-func (r *FilterFS) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
-	st := &syscall.Stat_t{}
-	err := syscall.Stat(r.root, st)
-	if err != nil {
-		return fs.ToErrno(err)
-	}
-	out.FromStat(st)
-	return fs.OK
 }
 
 // FilterNode represents a file or directory node in the filtered filesystem.
@@ -89,6 +73,15 @@ func (n *FilterNode) fullPath() string {
 	return n.root.fullPath(n.path)
 }
 
+// OnAdd logs the mount operation once the root node is attached to the tree.
+func (n *FilterNode) OnAdd(ctx context.Context) {
+	if n.path != "" {
+		return
+	}
+	n.root.logger.Info("FilterFS mounted",
+		zap.String("source", n.root.root), zap.String("mount", n.root.config.MountPath))
+}
+
 // Getattr returns file attributes for this node.
 // This implements the FUSE Getattr operation for files and directories.
 func (n *FilterNode) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
@@ -99,32 +92,6 @@ func (n *FilterNode) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.Att
 	}
 	out.FromStat(st)
 	return fs.OK
-}
-
-// Lookup finds a child node by name in the root directory.
-// It applies filtering rules and returns ENOENT for blacklisted items.
-func (r *FilterFS) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	path := filepath.Join("", name)
-
-	if r.shouldHide(path) {
-		return nil, syscall.ENOENT
-	}
-
-	fullPath := r.fullPath(path)
-	st := &syscall.Stat_t{}
-	err := syscall.Stat(fullPath, st)
-	if err != nil {
-		return nil, fs.ToErrno(err)
-	}
-
-	out.FromStat(st)
-
-	node := &FilterNode{
-		path: path,
-		root: r,
-	}
-
-	return r.NewInode(ctx, node, fs.StableAttr{Mode: st.Mode}), fs.OK
 }
 
 // Lookup finds a child node by name within this directory node.
