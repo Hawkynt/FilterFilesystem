@@ -1,139 +1,123 @@
+version: "2"
+
 run:
   timeout: 5m
-  issues-exit-code: 1
   tests: true
-  skip-dirs:
-    - vendor
-  skip-files:
-    - ".*\\.pb\\.go$"
-    - ".*_mock\\.go$"
-
-output:
-  format: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
-
-linters-settings:
-  govet:
-    check-shadowing: true
-    enable-all: true
-    disable:
-      - fieldalignment  # Too strict for this project
-  
-  golint:
-    min-confidence: 0
-  
-  gocyclo:
-    min-complexity: 15
-  
-  maligned:
-    suggest-new: true
-  
-  dupl:
-    threshold: 100
-  
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  
-  misspell:
-    locale: US
-  
-  lll:
-    line-length: 120
-  
-  goimports:
-    local-prefixes: github.com/filterfs/filterfs
-  
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport
-      - ifElseChain
-      - octalLiteral
-      - whyNoLint
-      - wrapperFunc
 
 linters:
+  default: standard
   enable:
     - bodyclose
-    - deadcode
-    - depguard
+    - copyloopvar    # replaces the removed exportloopref/scopelint
     - dogsled
     - dupl
-    - errcheck
-    - exportloopref
     - exhaustive
     - funlen
     - gochecknoinits
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - goimports
-    - gomnd
     - goprintffuncname
     - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    - interfacer
     - lll
     - misspell
+    - mnd            # renamed from gomnd
     - nakedret
     - noctx
     - nolintlint
     - rowserrcheck
-    - scopelint
-    - staticcheck
-    - structcheck
-    - stylecheck
-    - typecheck
     - unconvert
     - unparam
-    - unused
-    - varcheck
     - whitespace
 
-  # Don't enable:
-  # - asciicheck
-  # - gochecknoglobals
-  # - gocognit
-  # - godot
-  # - godox
-  # - goerr113
-  # - maligned
-  # - nestif
-  # - prealloc
-  # - testpackage
-  # - wsl
+  # Not enabled (removed upstream, superseded, or intentionally off):
+  # - deadcode/structcheck/varcheck -> unused (standard set)
+  # - golint/interfacer/maligned    -> removed upstream
+  # - gosimple/stylecheck           -> merged into staticcheck (standard set)
+  # - depguard                      -> was enabled without rules, i.e. a no-op
+  # - asciicheck, gochecknoglobals, gocognit, godot, godox, goerr113,
+  #   nestif, prealloc, testpackage, wsl
+
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment  # Too strict for this project
+
+    gocyclo:
+      min-complexity: 15
+
+    dupl:
+      threshold: 100
+
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+
+    misspell:
+      locale: US
+
+    lll:
+      line-length: 120
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+      disabled-checks:
+        - dupImport
+        - ifElseChain
+        - octalLiteral
+        - whyNoLint
+        - wrapperFunc
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - ".*\\.pb\\.go$"
+      - ".*_mock\\.go$"
+      - vendor
+    rules:
+      - path: _test\.go
+        linters:
+          - mnd
+          - funlen
+          - gocyclo
+
+      - path: cmd/
+        linters:
+          - gochecknoinits
+
+      - source: "//go:generate"
+        linters:
+          - lll
+
+      # Exclude some lints for test files
+      - text: "should have a package comment"
+      - text: "don't use ALL_CAPS in Go names"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/filterfs/filterfs
+  exclusions:
+    paths:
+      - ".*\\.pb\\.go$"
+      - ".*_mock\\.go$"
 
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gomnd
-        - funlen
-        - gocyclo
-    
-    - path: cmd/
-      linters:
-        - gochecknoinits
-    
-    - source: "//go:generate"
-      linters:
-        - lll
-
-  exclude:
-    # Exclude some lints for test files
-    - "should have a package comment"
-    - "don't use ALL_CAPS in Go names"
-  
   max-issues-per-linter: 0
   max-same-issues: 0
   new: false
