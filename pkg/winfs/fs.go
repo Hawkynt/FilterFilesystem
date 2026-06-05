@@ -17,6 +17,7 @@ import (
 
 	"github.com/winfsp/cgofuse/fuse"
 	"go.uber.org/zap"
+	"golang.org/x/sys/windows"
 
 	"github.com/Hawkynt/FilterFilesystem/pkg/filter"
 	"github.com/Hawkynt/FilterFilesystem/pkg/pattern"
@@ -169,6 +170,32 @@ func (f *FilterFS) drop(fh uint64) int {
 		return -fuse.EBADF
 	}
 	return errno(file.Close())
+}
+
+// Statfs reports the capacity of the volume backing the source directory so
+// tools like Explorer show meaningful totals instead of zeros.
+func (f *FilterFS) Statfs(path string, stat *fuse.Statfs_t) int {
+	root, err := windows.UTF16PtrFromString(f.root)
+	if err != nil {
+		return -fuse.EIO
+	}
+
+	var freeAvail, total, totalFree uint64
+	if err := windows.GetDiskFreeSpaceEx(root, &freeAvail, &total, &totalFree); err != nil {
+		return errno(err)
+	}
+
+	// Report in fixed 4 KiB blocks - WinFsp only cares about the products
+	// Frsize*Blocks etc., not the underlying cluster size.
+	const blockSize = 4096
+	stat.Bsize = blockSize
+	stat.Frsize = blockSize
+	stat.Blocks = total / blockSize
+	stat.Bfree = totalFree / blockSize
+	stat.Bavail = freeAvail / blockSize
+	stat.Namemax = 255 // NTFS path-component limit
+
+	return 0
 }
 
 // Getattr returns file attributes; blacklisted paths report ENOENT.

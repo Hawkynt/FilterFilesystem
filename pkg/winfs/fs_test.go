@@ -192,6 +192,22 @@ func TestDirectoryPolicies(t *testing.T) {
 	})
 }
 
+func TestStatfs(t *testing.T) {
+	fsys, _ := newTestFS(t, false, nil)
+
+	// given a mounted source volume, when querying statfs,
+	// then plausible non-zero capacity figures are reported
+	stat := &fuse.Statfs_t{}
+	require.Equal(t, 0, fsys.Statfs("/", stat))
+	assert.NotZero(t, stat.Bsize)
+	assert.NotZero(t, stat.Frsize)
+	assert.NotZero(t, stat.Blocks)
+	assert.NotZero(t, stat.Namemax)
+	// boundary: free space never exceeds total, available never exceeds free
+	assert.LessOrEqual(t, stat.Bfree, stat.Blocks)
+	assert.LessOrEqual(t, stat.Bavail, stat.Bfree)
+}
+
 func TestTruncate(t *testing.T) {
 	fsys, sourceDir := newTestFS(t, false, nil)
 
