@@ -119,7 +119,7 @@ func (n *FilterNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut
 		root: n.root,
 	}
 
-	return n.NewInode(ctx, child, fs.StableAttr{Mode: st.Mode}), fs.OK
+	return n.NewInode(ctx, child, fs.StableAttr{Mode: uint32(st.Mode)}), fs.OK //nolint:unconvert // uint16 on darwin
 }
 
 // Readdir returns the contents of this directory with blacklisted items filtered out.
@@ -295,7 +295,7 @@ func (n *FilterNode) Create(
 		root: n.root,
 	}
 
-	return n.NewInode(ctx, child, fs.StableAttr{Mode: st.Mode}), &FilterFile{file: fh}, 0, fs.OK
+	return n.NewInode(ctx, child, fs.StableAttr{Mode: uint32(st.Mode)}), &FilterFile{file: fh}, 0, fs.OK //nolint:unconvert,lll // uint16 on darwin
 }
 
 // Mkdir creates a new directory in this directory.
@@ -328,7 +328,7 @@ func (n *FilterNode) Mkdir(
 		root: n.root,
 	}
 
-	return n.NewInode(ctx, child, fs.StableAttr{Mode: st.Mode}), fs.OK
+	return n.NewInode(ctx, child, fs.StableAttr{Mode: uint32(st.Mode)}), fs.OK //nolint:unconvert // uint16 on darwin
 }
 
 // Unlink removes a file from this directory.
