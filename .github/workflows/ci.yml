@@ -98,6 +98,10 @@ jobs:
   test-windows:
     name: windows (WinFsp)
     runs-on: windows-latest
+    # cgofuse must use its no-cgo path on Windows (it loads the WinFsp DLL at
+    # runtime); with cgo enabled it would try to compile against FUSE headers.
+    env:
+      CGO_ENABLED: '0'
 
     steps:
     - uses: actions/checkout@v6
