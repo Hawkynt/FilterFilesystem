@@ -39,6 +39,7 @@ var (
 	sourcePath string
 	mountPath  string
 	readOnly   bool
+	allowOther bool
 	blacklist  []string
 	logLevel   string
 )
@@ -74,6 +75,8 @@ func init() {
 	mountCmd.Flags().StringVarP(&sourcePath, "source", "s", "", "Source directory to filter")
 	mountCmd.Flags().StringVarP(&mountPath, "mount", "m", "", "Mount point for filtered filesystem")
 	mountCmd.Flags().BoolVarP(&readOnly, "readonly", "r", false, "Mount as read-only")
+	mountCmd.Flags().BoolVar(&allowOther, "allow-other", false,
+		"Allow other users to access the mount (requires 'user_allow_other' in /etc/fuse.conf)")
 	mountCmd.Flags().StringSliceVarP(&blacklist, "blacklist", "b", []string{}, "Blacklist patterns")
 	mountCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 
@@ -172,7 +175,7 @@ func mountOptions() *fs.Options {
 	return &fs.Options{
 		MountOptions: fuse.MountOptions{
 			Debug:         logLevel == "debug",
-			AllowOther:    true,
+			AllowOther:    allowOther,
 			FsName:        appName,
 			Name:          appName,
 			DisableXAttrs: true, // Disable extended attributes for better compatibility

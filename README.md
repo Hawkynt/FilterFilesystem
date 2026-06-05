@@ -144,6 +144,7 @@ Flags:
   -c, --config string      Configuration file path
   -r, --readonly           Mount as read-only
   -b, --blacklist strings  Blacklist patterns
+      --allow-other        Allow other users to access the mount (requires 'user_allow_other' in /etc/fuse.conf)
       --log-level string   Log level (debug, info, warn, error) (default "info")
   -h, --help              Help for mount
 ```
