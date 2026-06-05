@@ -24,8 +24,29 @@ function gh(args, opts = {}) {
     return r.stdout;
 }
 
+// Synchronous sleep; the script is intentionally spawnSync-based.
+function sleep(ms) {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+// The GitHub API occasionally answers 5xx; retry a few times and otherwise
+// skip the prune - missing one night is harmless, the next run catches up.
+const LIST_ATTEMPTS = 3;
+const RETRY_PAUSE_MS = 10_000;
+
 function listNightlies() {
-    const out = gh(['release', 'list', '--limit', '200', '--json', 'tagName,createdAt,isPrerelease']);
+    let out = null;
+    for (let attempt = 1; attempt <= LIST_ATTEMPTS; attempt++) {
+        try { out = gh(['release', 'list', '--limit', '200', '--json', 'tagName,createdAt,isPrerelease']); break; }
+        catch (e) {
+            console.error(`warning: listing releases failed (attempt ${attempt}/${LIST_ATTEMPTS}): ${e.message}`);
+            if (attempt < LIST_ATTEMPTS) sleep(RETRY_PAUSE_MS);
+        }
+    }
+    if (out === null) {
+        console.error('warning: could not list releases; skipping prune.');
+        return [];
+    }
     let all;
     try { all = JSON.parse(out); }
     catch (e) {
