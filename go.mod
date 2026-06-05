@@ -1,11 +1,12 @@
-module github.com/filterfs/filterfs
+module github.com/Hawkynt/FilterFilesystem
 
-go 1.21
+go 1.22
 
 require (
 	github.com/hanwen/go-fuse/v2 v2.5.0
 	github.com/spf13/cobra v1.8.0
 	github.com/stretchr/testify v1.9.0
+	github.com/winfsp/cgofuse v1.6.0
 	go.uber.org/zap v1.27.0
 	gopkg.in/yaml.v3 v3.0.1
 )
