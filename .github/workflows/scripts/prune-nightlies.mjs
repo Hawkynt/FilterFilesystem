@@ -117,7 +117,11 @@ export function planRetention(releases, opts = {}) {
     const keep     = new Set();
 
     // --- Son: N newest releases -----------------------------------------
-    const sonSlice = releases.slice(0, dailyN);
+    // INVARIANT: the newest nightly is ALWAYS kept (hence max(1, …)). The
+    // next nightly's release notes measure their delta from the nearest tag
+    // (update-changelog.mjs), so deleting the newest tag would silently widen
+    // the next delta and re-report already-published changes.
+    const sonSlice = releases.slice(0, Math.max(1, dailyN));
     for (const r of sonSlice) keep.add(r.tag);
     const sonWeeks  = new Set(sonSlice.map(r => isoWeekKey(r.date)));
     const sonMonths = new Set(sonSlice.map(r => r.iso.slice(0, 7)));
