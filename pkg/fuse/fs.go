@@ -1,3 +1,5 @@
+//go:build linux || darwin
+
 // Package fuse provides the FUSE filesystem implementation for FilterFS.
 // It integrates with the go-fuse library to provide a filtered view of directories.
 package fuse
@@ -16,8 +18,8 @@ import (
 	"github.com/hanwen/go-fuse/v2/fuse"
 	"go.uber.org/zap"
 
-	"github.com/filterfs/filterfs/pkg/filter"
-	"github.com/filterfs/filterfs/pkg/pattern"
+	"github.com/Hawkynt/FilterFilesystem/pkg/filter"
+	"github.com/Hawkynt/FilterFilesystem/pkg/pattern"
 )
 
 // FilterFS holds the shared state of the filtered filesystem: the source

@@ -157,8 +157,8 @@ example-config:
 	@printf '%s\n' "$$EXAMPLE_CONFIG" > filterfs.example.yaml
 	@echo "Example configuration created: filterfs.example.yaml"
 
-# Build for multiple platforms (FUSE limits us to platforms supported by go-fuse;
-# Windows has no go-fuse port)
+# Build for multiple platforms (Linux/macOS use go-fuse, Windows uses WinFsp
+# via cgofuse - all pure Go, so everything cross-compiles with CGO disabled)
 build-all:
 	@echo "Building for multiple platforms..."
 	@mkdir -p $(BUILD_DIR)
@@ -166,6 +166,8 @@ build-all:
 	GOOS=linux GOARCH=arm64 go build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 $(MAIN_PACKAGE)
 	GOOS=darwin GOARCH=amd64 go build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 $(MAIN_PACKAGE)
 	GOOS=darwin GOARCH=arm64 go build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 $(MAIN_PACKAGE)
+	GOOS=windows GOARCH=amd64 go build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe $(MAIN_PACKAGE)
+	GOOS=windows GOARCH=arm64 go build $(GOFLAGS) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-arm64.exe $(MAIN_PACKAGE)
 
 # Docker build
 docker-build:

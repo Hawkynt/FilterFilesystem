@@ -1,3 +1,5 @@
+//go:build linux || darwin
+
 package unit
 
 import (
@@ -12,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 
-	"github.com/filterfs/filterfs/pkg/filter"
-	fusefs "github.com/filterfs/filterfs/pkg/fuse"
+	"github.com/Hawkynt/FilterFilesystem/pkg/filter"
+	fusefs "github.com/Hawkynt/FilterFilesystem/pkg/fuse"
 )
 
 func TestFilterFS_Integration(t *testing.T) {

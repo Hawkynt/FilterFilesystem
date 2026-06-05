@@ -94,3 +94,43 @@ jobs:
         # Cleanup
         sudo umount /tmp/filterfs-test/mount || true
         killall filterfs || true
+
+  test-windows:
+    name: windows (WinFsp)
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: 'stable'
+
+    - name: Build
+      run: go build ./...
+
+    - name: Vet
+      run: go vet ./...
+
+    # This tier is REQUIRED - the winfs backend tests run against a temp
+    # directory without needing a WinFsp mount.
+    - name: Test
+      run: go test ./pkg/...
+
+    # OPTIONAL advisory tier: a real WinFsp mount smoke test. Mounting in a
+    # shared runner can be flaky, so a failure here never blocks a merge.
+    - name: Mount smoke test (advisory)
+      continue-on-error: true
+      shell: bash
+      run: |
+        choco install winfsp -y --no-progress
+        go build -o filterfs.exe ./cmd/filterfs
+        mkdir -p /c/filterfs-src
+        echo "test content" > /c/filterfs-src/test.txt
+        echo "log content" > /c/filterfs-src/app.log
+        ./filterfs.exe mount -s 'C:\filterfs-src' -m 'X:' -b '**/*.log' &
+        sleep 5
+        if [ -f /x/app.log ]; then echo "ERROR: filtered file visible"; exit 1; fi
+        if [ ! -f /x/test.txt ]; then echo "ERROR: normal file hidden"; exit 1; fi
+        echo "smoke test passed"
