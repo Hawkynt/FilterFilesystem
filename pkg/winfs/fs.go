@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/winfsp/cgofuse/fuse"
 	"go.uber.org/zap"
@@ -87,6 +88,7 @@ func (f *FilterFS) hasHiddenChildren(fusePath string) bool {
 
 // errno maps a Go filesystem error to a negative FUSE errno.
 func errno(err error) int {
+	var winErr syscall.Errno
 	switch {
 	case err == nil:
 		return 0
@@ -96,6 +98,8 @@ func errno(err error) int {
 		return -fuse.EEXIST
 	case errors.Is(err, fs.ErrPermission):
 		return -fuse.EACCES
+	case errors.As(err, &winErr) && winErr == windows.ERROR_PRIVILEGE_NOT_HELD:
+		return -fuse.EPERM // e.g. symlink creation without Developer Mode
 	default:
 		return -fuse.EIO
 	}
@@ -104,9 +108,12 @@ func errno(err error) int {
 // statFromInfo fills a fuse.Stat_t from an os.FileInfo.
 func statFromInfo(info os.FileInfo, stat *fuse.Stat_t) {
 	perm := uint32(info.Mode().Perm())
-	if info.IsDir() {
+	switch {
+	case info.Mode()&os.ModeSymlink != 0:
+		stat.Mode = fuse.S_IFLNK | perm
+	case info.IsDir():
 		stat.Mode = fuse.S_IFDIR | perm
-	} else {
+	default:
 		stat.Mode = fuse.S_IFREG | perm
 	}
 	stat.Nlink = 1
@@ -199,18 +206,59 @@ func (f *FilterFS) Statfs(path string, stat *fuse.Statfs_t) int {
 }
 
 // Getattr returns file attributes; blacklisted paths report ENOENT.
+// Lstat semantics: symbolic links report themselves, not their target.
 func (f *FilterFS) Getattr(path string, stat *fuse.Stat_t, fh uint64) int {
 	if f.shouldHide(path) {
 		return -fuse.ENOENT
 	}
 
-	info, err := os.Stat(f.fullPath(path))
+	info, err := os.Lstat(f.fullPath(path))
 	if err != nil {
 		return errno(err)
 	}
 
 	statFromInfo(info, stat)
 	return 0
+}
+
+// Readlink resolves a symbolic link in the source tree.
+func (f *FilterFS) Readlink(path string) (errc int, target string) {
+	if f.shouldHide(path) {
+		return -fuse.ENOENT, ""
+	}
+
+	target, err := os.Readlink(f.fullPath(path))
+	if err != nil {
+		return errno(err), ""
+	}
+	return 0, filepath.ToSlash(target)
+}
+
+// Symlink creates a symbolic link. On Windows this needs either Developer
+// Mode or the SeCreateSymbolicLinkPrivilege; without it EPERM is reported.
+func (f *FilterFS) Symlink(target, newpath string) int {
+	if f.config.ReadOnly {
+		return -fuse.EROFS
+	}
+	if f.shouldHide(newpath) {
+		return -fuse.EPERM
+	}
+	return errno(os.Symlink(filepath.FromSlash(target), f.fullPath(newpath)))
+}
+
+// Link creates a hard link on the source volume (NTFS supports them; whether
+// the request ever arrives depends on the WinFsp version's FUSE layer).
+func (f *FilterFS) Link(oldpath, newpath string) int {
+	if f.config.ReadOnly {
+		return -fuse.EROFS
+	}
+	if f.shouldHide(oldpath) {
+		return -fuse.ENOENT
+	}
+	if f.shouldHide(newpath) {
+		return -fuse.EPERM
+	}
+	return errno(os.Link(f.fullPath(oldpath), f.fullPath(newpath)))
 }
 
 // Opendir validates that the directory is visible and accessible.

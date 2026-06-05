@@ -192,6 +192,118 @@ func TestDirectoryPolicies(t *testing.T) {
 	})
 }
 
+func TestXattr(t *testing.T) {
+	t.Run("set-get-list-remove roundtrip", func(t *testing.T) {
+		fsys, _ := newTestFS(t, false, nil)
+
+		assert.Equal(t, 0, fsys.Setxattr("/public.txt", "user.comment", []byte("hello"), 0))
+
+		errc, value := fsys.Getxattr("/public.txt", "user.comment")
+		assert.Equal(t, 0, errc)
+		assert.Equal(t, "hello", string(value))
+
+		var names []string
+		assert.Equal(t, 0, fsys.Listxattr("/public.txt", func(name string) bool {
+			names = append(names, name)
+			return true
+		}))
+		assert.Contains(t, names, "user.comment")
+
+		assert.Equal(t, 0, fsys.Removexattr("/public.txt", "user.comment"))
+		errc, _ = fsys.Getxattr("/public.txt", "user.comment")
+		assert.Equal(t, -fuse.ENOATTR, errc)
+	})
+
+	t.Run("CREATE and REPLACE flag semantics", func(t *testing.T) {
+		fsys, _ := newTestFS(t, false, nil)
+
+		// REPLACE on a missing attribute fails
+		assert.Equal(t, -fuse.ENOATTR,
+			fsys.Setxattr("/public.txt", "user.a", []byte("x"), fuse.XATTR_REPLACE))
+		// CREATE on a fresh attribute succeeds ...
+		assert.Equal(t, 0,
+			fsys.Setxattr("/public.txt", "user.a", []byte("x"), fuse.XATTR_CREATE))
+		// ... but fails once it exists
+		assert.Equal(t, -fuse.EEXIST,
+			fsys.Setxattr("/public.txt", "user.a", []byte("y"), fuse.XATTR_CREATE))
+		// and REPLACE now succeeds
+		assert.Equal(t, 0,
+			fsys.Setxattr("/public.txt", "user.a", []byte("z"), fuse.XATTR_REPLACE))
+	})
+
+	t.Run("attributes of hidden files are unreachable", func(t *testing.T) {
+		fsys, _ := newTestFS(t, false, []string{"**/*.log"})
+		assert.Equal(t, -fuse.ENOENT, fsys.Setxattr("/secret.log", "user.a", []byte("x"), 0))
+		errc, _ := fsys.Getxattr("/secret.log", "user.a")
+		assert.Equal(t, -fuse.ENOENT, errc)
+		assert.Equal(t, -fuse.ENOENT, fsys.Listxattr("/secret.log", func(string) bool { return true }))
+		assert.Equal(t, -fuse.ENOENT, fsys.Removexattr("/secret.log", "user.a"))
+	})
+
+	t.Run("read-only mode refuses mutations", func(t *testing.T) {
+		fsys, _ := newTestFS(t, true, nil)
+		assert.Equal(t, -fuse.EROFS, fsys.Setxattr("/public.txt", "user.a", []byte("x"), 0))
+		assert.Equal(t, -fuse.EROFS, fsys.Removexattr("/public.txt", "user.a"))
+	})
+
+	t.Run("attribute on a missing file reports ENOENT", func(t *testing.T) {
+		fsys, _ := newTestFS(t, false, nil)
+		assert.Equal(t, -fuse.ENOENT, fsys.Listxattr("/no-such-file", func(string) bool { return true }))
+	})
+}
+
+func TestSymlink(t *testing.T) {
+	fsys, sourceDir := newTestFS(t, false, []string{"**/*.log"})
+
+	// creating symlinks needs Developer Mode or admin rights on Windows
+	probe := filepath.Join(sourceDir, "probe-link")
+	if err := os.Symlink(filepath.Join(sourceDir, "public.txt"), probe); err != nil {
+		t.Skipf("symlinks not available on this host: %v", err)
+	}
+
+	t.Run("Getattr reports symlinks as symlinks", func(t *testing.T) {
+		stat := &fuse.Stat_t{}
+		require.Equal(t, 0, fsys.Getattr("/probe-link", stat, ^uint64(0)))
+		assert.EqualValues(t, fuse.S_IFLNK, stat.Mode&fuse.S_IFMT)
+	})
+
+	t.Run("Readlink resolves the target", func(t *testing.T) {
+		errc, target := fsys.Readlink("/probe-link")
+		assert.Equal(t, 0, errc)
+		assert.Contains(t, target, "public.txt")
+	})
+
+	t.Run("Symlink creates a link through the filesystem", func(t *testing.T) {
+		assert.Equal(t, 0, fsys.Symlink("public.txt", "/created-link"))
+		errc, target := fsys.Readlink("/created-link")
+		assert.Equal(t, 0, errc)
+		assert.Equal(t, "public.txt", target)
+	})
+
+	t.Run("Symlink to a blacklisted name is refused", func(t *testing.T) {
+		assert.Equal(t, -fuse.EPERM, fsys.Symlink("public.txt", "/evil.log"))
+	})
+}
+
+func TestLink(t *testing.T) {
+	fsys, sourceDir := newTestFS(t, false, []string{"**/*.log"})
+
+	t.Run("hard link shares content with the original", func(t *testing.T) {
+		require.Equal(t, 0, fsys.Link("/public.txt", "/hardlink.txt"))
+		content, err := os.ReadFile(filepath.Join(sourceDir, "hardlink.txt"))
+		require.NoError(t, err)
+		assert.Equal(t, "public content", string(content))
+	})
+
+	t.Run("hard link of a hidden file reports ENOENT", func(t *testing.T) {
+		assert.Equal(t, -fuse.ENOENT, fsys.Link("/secret.log", "/copy.txt"))
+	})
+
+	t.Run("hard link to a blacklisted name is refused", func(t *testing.T) {
+		assert.Equal(t, -fuse.EPERM, fsys.Link("/public.txt", "/copy.log"))
+	})
+}
+
 func TestStatfs(t *testing.T) {
 	fsys, _ := newTestFS(t, false, nil)
 
