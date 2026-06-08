@@ -15,7 +15,7 @@
 ![Repo Size](https://img.shields.io/github/repo-size/Hawkynt/FilterFilesystem?color=FF9800)
 
 [![Release](https://img.shields.io/github/v/release/Hawkynt/FilterFilesystem?sort=semver)](https://github.com/Hawkynt/FilterFilesystem/releases/latest)
-[![Nightly](https://img.shields.io/github/v/release/Hawkynt/FilterFilesystem?include_prereleases=true&sort=date&label=nightly&color=FF9800)](https://github.com/Hawkynt/FilterFilesystem/releases)
+[![Nightly](https://img.shields.io/github/v/release/Hawkynt/FilterFilesystem?include_prereleases&sort=date&label=nightly&color=FF9800)](https://github.com/Hawkynt/FilterFilesystem/releases)
 [![Downloads](https://img.shields.io/github/downloads/Hawkynt/FilterFilesystem/total)](https://github.com/Hawkynt/FilterFilesystem/releases)
 
 > A high-performance filter filesystem in Go (FUSE on Linux, WinFsp on Windows) that mounts any directory with fine-grained pattern-based visibility filtering — read-only or read-write — so tools and users only ever see the files they're supposed to.
