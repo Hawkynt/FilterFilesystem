@@ -20,6 +20,16 @@
 
 > A high-performance filter filesystem in Go (FUSE on Linux, WinFsp on Windows) that mounts any directory with fine-grained pattern-based visibility filtering — read-only or read-write — so tools and users only ever see the files they're supposed to.
 
+## 🧭 Vision
+
+Sometimes a program should only see part of a directory, and the usual answers are all bad: copy the
+subset somewhere else and keep it in sync, teach the program a filter it does not have, or give it
+everything and hope. FilterFS mounts the view instead — the same files, through FUSE, with a pattern
+saying what exists and what does not.
+
+It is deliberately a filesystem rather than a library, so anything that opens files works with it
+unmodified, including things that will never be recompiled.
+
 ## ✨ Features
 
 - **Pattern-based Filtering**: Advanced glob and wildcard pattern matching
@@ -75,7 +85,7 @@ filterfs.exe mount -s C:\data -m X: -b "**/*.log"
 The mount point must not already exist (WinFsp creates it). Unmount by stopping
 the filterfs process (Ctrl+C); the `unmount` command is Unix-only.
 
-## 🚀 Quick Start
+## 🚀 Quick start
 
 ### Basic Usage
 
@@ -109,7 +119,7 @@ allow_delete_with_hidden: false
 allow_rename_with_hidden: false
 ```
 
-## Pattern Matching
+## 🔤 Pattern matching
 
 FilterFS supports sophisticated pattern matching for blacklisting files and directories:
 
@@ -150,7 +160,7 @@ blacklist:
   - "/**/cache.*"         # Hide cache files with any extension
 ```
 
-## Command Line Interface
+## ⌨️ Command line interface
 
 ### Mount Command
 
@@ -185,7 +195,7 @@ filterfs mount --config ./filterfs.yaml
 filterfs mount -s ~/test -m ~/filtered --log-level debug -b "**/*.hidden"
 ```
 
-## Configuration
+## 🔧 Configuration
 
 ### Configuration File Options
 
@@ -203,7 +213,7 @@ filterfs mount -s ~/test -m ~/filtered --log-level debug -b "**/*.hidden"
 - `FILTERFS_LOG_LEVEL`: Override log level
 - `FILTERFS_CONFIG`: Default configuration file path
 
-## Docker Usage
+## 🐳 Docker usage
 
 ### Basic Docker Run
 
@@ -243,7 +253,7 @@ services:
     command: mount --config /etc/filterfs/config.yaml
 ```
 
-## 🛠️ Development
+## 🧰 Development
 
 ### Prerequisites
 
@@ -322,7 +332,7 @@ go test -v ./pkg/pattern -run TestMatcher
 sudo make test
 ```
 
-## Performance
+## 📈 Performance
 
 FilterFS is optimized for performance with:
 
@@ -344,7 +354,7 @@ BenchmarkFileRead-8            500000     2.4 µs/op    1 allocs/op
 BenchmarkDirectoryList-8       100000     15.6 µs/op   3 allocs/op
 ```
 
-## Security Considerations
+## 🛡️ Security considerations
 
 - FilterFS operates with the same permissions as the mounting user
 - Hidden files are completely invisible to applications accessing the mount
@@ -352,7 +362,7 @@ BenchmarkDirectoryList-8       100000     15.6 µs/op   3 allocs/op
 - Pattern matching is performed securely without shell expansion
 - No sensitive information is logged by default
 
-## Troubleshooting
+## 🩺 Troubleshooting
 
 ### Common Issues
 
@@ -404,9 +414,25 @@ FilterFS provides structured logging:
 }
 ```
 
-## Contributing
+## 🙏 Acknowledgments
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+- Built with [go-fuse](https://github.com/hanwen/go-fuse) for FUSE integration
+- Uses [cobra](https://github.com/spf13/cobra) for CLI interface
+- Logging powered by [zap](https://github.com/uber-go/zap)
+
+## 🛠️ Building
+
+```bash
+make build      # build the binary
+make test       # run the suite
+make check      # everything CI runs
+```
+
+Integration tests need FUSE available; the unit tests do not.
+
+## 🤝 Contributing
+
+We welcome contributions!
 
 1. Fork the repository
 2. Create a feature branch
@@ -414,16 +440,6 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 4. Add tests
 5. Run `make check`
 6. Submit a pull request
-
-## 📜 License
-
-Licensed under LGPL-3.0-or-later — see [LICENSE](LICENSE).
-
-## Acknowledgments
-
-- Built with [go-fuse](https://github.com/hanwen/go-fuse) for FUSE integration
-- Uses [cobra](https://github.com/spf13/cobra) for CLI interface
-- Logging powered by [zap](https://github.com/uber-go/zap)
 
 ## 🆘 Getting Help
 
@@ -436,3 +452,6 @@ If this project saves you time or money, consider supporting its development:
 
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-EA4AAA?logo=githubsponsors)](https://github.com/sponsors/Hawkynt)
 [![PayPal](https://img.shields.io/badge/PayPal-Donate-00457C?logo=paypal)](https://www.paypal.me/hawkynt)
+## 📜 License
+
+Licensed under LGPL-3.0-or-later — see [LICENSE](LICENSE).
